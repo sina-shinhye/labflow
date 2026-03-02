@@ -6,9 +6,10 @@ const C = { nav: "#C41E3A", navDim: "rgba(255,255,255,0.7)" }
 
 export default function Sidebar({ userEmail, onLogout }: { userEmail: string, onLogout: () => void }) {
   const pathname = usePathname()
-  
+
+// src/components/Sidebar.tsx 일부
 const menu = [
-  { name: '대시보드', href: '/', icon: '📊' },
+  { name: '대시보드', href: '/dashboard', icon: '📊' },
   { name: '시약 관리', href: '/reagents', icon: '🧪' },
   { name: '프로토콜', href: '/protocols', icon: '📋' },
   { name: '업로드/OCR', href: '/upload', icon: '📄' },

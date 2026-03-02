@@ -1,84 +1,110 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const C = {
-  border: "#EAE0E0", accent: "#C41E3A", accentDim: "rgba(196,30,58,0.08)",
-  text: "#1A1A2E", sub: "#555770", muted: "#8E90A6", bg: "#FAF8F8", danger: "#C0392B"
+  bg: "#FAF8F8", border: "#EAE0E0", accent: "#C41E3A", accentDim: "rgba(196,30,58,0.08)",
+  text: "#1A1A2E", sub: "#555770", muted: "#8E90A6",
+  ok: "#0F9D58", warning: "#E67E22", danger: "#C0392B", info: "#2C6FBB", infoDim: "rgba(44,111,187,0.1)"
 }
 
 export default function ReagentsPage() {
   const [reagents, setReagents] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', brand: '', location: '', remaining: 100, isStock: true })
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => { loadReagents() }, [])
+  useEffect(() => {
+    loadReagents()
+  }, [])
 
   const loadReagents = async () => {
-    setLoading(false)
-    const { data } = await supabase.from('reagents').select('*').order('created_at', { ascending: false })
+    setLoading(true)
+    const { data } = await supabase
+      .from('reagents')
+      .select('*')
+      .order('created_at', { ascending: false })
     if (data) setReagents(data)
+    setLoading(false)
   }
 
-  const handleReagentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const payload = { 
-      name: form.name, brand: form.brand, location: form.location, remaining: form.remaining,
-      status: form.isStock ? 'stock' : (form.remaining < 20 ? 'low' : 'ok')
+  // 명세서 8-5: 주문 처리 로직
+  const handleOrder = (r: any) => {
+    if (r.order_type === 'email') {
+      const subject = encodeURIComponent(`[Order] ${r.name} (Cat# ${r.catalog_number || 'N/A'})`)
+      window.open(`mailto:${r.order_url}?subject=${subject}`)
+    } else if (r.order_type === 'site') {
+      window.open(r.order_url, '_blank')
+    } else {
+      alert('주문처 정보가 등록되지 않았습니다.')
     }
-    await supabase.from('reagents').insert([payload])
-    setIsModalOpen(false)
-    loadReagents()
   }
+
+  const filteredReagents = reagents.filter(r => 
+    r.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (r.brand && r.brand.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
 
   return (
-    <div className="p-8">
-      <input type="file" accept="image/*" capture="environment" ref={fileInputRef} className="hidden" 
-        onChange={() => alert('스캔 기능이 작동합니다 (Mock)')} />
-      
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-8 space-y-6">
+      <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold" style={{ color: C.text }}>🧪 시약 재고 관리</h2>
-        <div className="flex gap-3">
-          <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 rounded-lg font-semibold border bg-white">📷 스캔 등록</button>
-          <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 rounded-lg text-white font-semibold" style={{ background: C.accent }}>+ 수동 등록</button>
-        </div>
+        <button className="px-4 py-2 rounded-lg text-white font-semibold shadow-md" style={{ background: C.accent }}>
+          + 시약 등록
+        </button>
       </div>
 
-      <input type="text" placeholder="🔍 시약 검색..." className="w-full max-w-md p-2.5 rounded-lg border mb-6 outline-none" 
-        value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+      {/* 검색 바 */}
+      <input 
+        type="text" 
+        placeholder="🔍 시약 검색 (이름, 브랜드)..." 
+        className="w-full max-w-md p-3 rounded-xl border outline-none focus:ring-2"
+        style={{ borderColor: C.border, fontSize: '13px' }}
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
 
-      <div className="rounded-xl overflow-hidden bg-white border" style={{ borderColor: C.border }}>
-        <div className="grid px-4 py-3 text-xs font-bold uppercase" style={{ gridTemplateColumns: "2fr 1.5fr 1fr 1.5fr", background: C.bg, color: C.muted }}>
-          <span>시약 정보</span><span>브랜드</span><span>잔량</span><span>위치</span>
+      {/* 시약 테이블 */}
+      <div className="rounded-xl overflow-hidden bg-white border shadow-sm" style={{ borderColor: C.border }}>
+        <div className="grid px-4 py-3 text-[10px] font-bold uppercase tracking-wider border-b" 
+             style={{ gridTemplateColumns: "2fr 1fr 70px 80px 1fr 50px 80px", background: C.bg, color: C.muted }}>
+          <span>시약</span><span>브랜드</span><span>잔량</span><span>유통기한</span><span>위치</span><span>상태</span><span>주문</span>
         </div>
-        {reagents.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase())).map((r) => (
-          <div key={r.id} className="grid px-4 py-3 border-b items-center text-sm" style={{ gridTemplateColumns: "2fr 1.5fr 1fr 1.5fr", borderColor: C.border }}>
-            <span className="font-semibold">{r.name}</span>
-            <span className="text-slate-500">{r.brand || '-'}</span>
-            <span>{r.remaining}%</span>
-            <span className="text-slate-500">{r.location || '-'}</span>
+
+        {loading ? (
+          <div className="p-10 text-center text-sm text-slate-400">데이터 로딩 중...</div>
+        ) : filteredReagents.map((r) => (
+          <div key={r.id} className="grid px-4 py-4 border-b items-center hover:bg-[#FFF5F5] transition-colors" 
+               style={{ gridTemplateColumns: "2fr 1fr 70px 80px 1fr 50px 80px", borderColor: C.border }}>
+            <div className="flex flex-col">
+              <span className="font-bold text-[12px]" style={{ color: C.text }}>{r.name}</span>
+              <span className="text-[10px] font-mono" style={{ color: C.muted }}>{r.catalog_number || '-'}</span>
+            </div>
+            <span className="text-[12px]" style={{ color: C.sub }}>{r.brand || '-'}</span>
+            <span className="text-[12px] font-mono">{r.remaining}%</span>
+            <span className="text-[12px]" style={{ color: r.status === 'expiring' ? C.danger : C.sub }}>{r.expiry_date || '-'}</span>
+            <span className="text-[11px]" style={{ color: C.muted }}>{r.location || '-'}</span>
+            
+            {/* 상태 도트 */}
+            <div className="flex justify-center">
+              <div className="w-2 h-2 rounded-full" style={{ 
+                background: r.status === 'ok' ? C.ok : r.status === 'low' ? C.warning : C.danger 
+              }} />
+            </div>
+
+            {/* 주문 버튼 */}
+            <button 
+              onClick={() => handleOrder(r)}
+              className="px-2 py-1 rounded text-[10px] font-bold transition-opacity hover:opacity-80"
+              style={{ 
+                background: r.order_type === 'email' ? C.infoDim : C.accentDim,
+                color: r.order_type === 'email' ? C.info : C.accent
+              }}
+            >
+              {r.order_type === 'email' ? '✉ 메일' : r.order_type === 'site' ? '🌐 사이트' : '+ 등록'}
+            </button>
           </div>
         ))}
       </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="rounded-2xl p-6 w-full max-w-md bg-white">
-            <h3 className="text-lg font-bold mb-5">새 시약 등록</h3>
-            <form onSubmit={handleReagentSubmit} className="space-y-4">
-              <input required className="w-full p-2 border rounded" placeholder="이름" onChange={e => setForm({...form, name: e.target.value})} />
-              <input className="w-full p-2 border rounded" placeholder="제조사" onChange={e => setForm({...form, brand: e.target.value})} />
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 bg-slate-100 rounded">취소</button>
-                <button type="submit" className="flex-1 py-2 text-white rounded" style={{ background: C.accent }}>저자</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
