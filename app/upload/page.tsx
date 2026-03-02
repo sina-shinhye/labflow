@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 export default function UploadPage() {
   const [uploading, setUploading] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [noteContent, setNoteContent] = useState({ title: '', content: '' })
+  const [isAnalyzed, setIsAnalyzed] = useState(false)
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -16,39 +18,60 @@ export default function UploadPage() {
       const fileName = `${Math.random()}.${fileExt}`
       const filePath = `notebooks/${fileName}`
 
-      // 1. Supabase Storage에 파일 업로드
       const { error: uploadError } = await supabase.storage
         .from('uploads')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      // 2. 업로드된 파일의 공개 URL 가져오기
       const { data: { publicUrl } } = supabase.storage
         .from('uploads')
         .getPublicUrl(filePath)
 
       setImageUrl(publicUrl)
-      alert('이미지가 성공적으로 업로드되었습니다!')
+      
+      // AI 분석 시뮬레이션
+      setTimeout(() => {
+        setNoteContent({
+          title: "WB — β-actin 검증 (Exp #WB-042)",
+          content: "Sample: HeLa WT vs KO\nResult: Band at ~42 kDa 확인 완료."
+        })
+        setIsAnalyzed(true)
+        setUploading(false)
+      }, 2000)
+
     } catch (error: any) {
       alert(error.message)
-    } finally {
       setUploading(false)
     }
   }
 
+  const saveNotebook = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('lab_notebooks').insert([{
+      title: noteContent.title,
+      content: noteContent.content,
+      image_url: imageUrl,
+      from_ocr: true,
+      created_by: user?.id
+    }])
+
+    if (!error) alert('실험 노트가 성공적으로 저장되었습니다!')
+  }
+
   return (
-    <div className="p-8">
-      <h2 className="text-2xl font-bold mb-6">📷 실험 데이터 업로드</h2>
+    <div className="p-8 space-y-6">
+      <h2 className="text-2xl font-bold">📷 실험 데이터 업로드 및 분석</h2>
       <div className="border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center bg-white">
-        <input type="file" accept="image/*" onChange={handleUpload} disabled={uploading} className="mb-4" />
-        <p className="text-slate-500 text-sm">{uploading ? '업로드 중...' : '실험 결과 사진이나 노트를 업로드하세요.'}</p>
+        <input type="file" accept="image/*" onChange={handleUpload} disabled={uploading} />
+        <p className="mt-2 text-slate-500">{uploading ? 'AI 분석 중...' : '노트 사진을 올려주세요.'}</p>
       </div>
 
-      {imageUrl && (
-        <div className="mt-8">
-          <p className="font-bold mb-2">업로드 결과:</p>
-          <img src={imageUrl} alt="Uploaded" className="max-w-md rounded-lg shadow-lg border" />
+      {isAnalyzed && (
+        <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+          <input className="w-full text-xl font-bold border-b pb-2 outline-none" value={noteContent.title} onChange={e => setNoteContent({...noteContent, title: e.target.value})} />
+          <textarea className="w-full h-40 p-4 bg-slate-50 rounded-xl font-mono text-sm leading-relaxed outline-none" value={noteContent.content} onChange={e => setNoteContent({...noteContent, content: e.target.value})} />
+          <button onClick={saveNotebook} className="w-full py-3 bg-[#C41E3A] text-white rounded-xl font-bold">💾 전자 실험 노트로 저장</button>
         </div>
       )}
     </div>

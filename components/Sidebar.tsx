@@ -7,12 +7,15 @@ const C = { nav: "#C41E3A", navDim: "rgba(255,255,255,0.7)" }
 export default function Sidebar({ userEmail, onLogout }: { userEmail: string, onLogout: () => void }) {
   const pathname = usePathname()
   
-  const menu = [
-    { name: '대시보드', href: '/', icon: '📊' },
-    { name: '시약 관리', href: '/reagents', icon: '🧪' },
-    { name: '프로토콜', href: '/protocols', icon: '📋' },
-    { name: '업로드/OCR', href: '/upload', icon: '📷' },
-  ]
+const menu = [
+  { name: '대시보드', href: '/', icon: '📊' },
+  { name: '시약 관리', href: '/reagents', icon: '🧪' },
+  { name: '프로토콜', href: '/protocols', icon: '📋' },
+  { name: '업로드/OCR', href: '/upload', icon: '📄' },
+  { name: '기기 관리', href: '/equipment', icon: '⚙️' },
+  { name: '실험 관리', href: '/experiments', icon: '📈' },
+  { name: 'AI 어시스턴트', href: '/ai', icon: '🤖' },
+]
 
   return (
     <nav className="w-56 shrink-0 flex flex-col py-6 px-4 h-screen" style={{ background: C.nav }}>
